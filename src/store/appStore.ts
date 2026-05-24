@@ -3,7 +3,19 @@ import { mockPets } from '../mock/mockPets';
 import { mockTravels } from '../mock/mockTravels';
 import { mockUser } from '../mock/mockUser';
 import { dbService } from '../services/dbService';
-import type { ChatMessage, Destination, DiaryEntry, ModalType, Pet, TravelRecord, TravelSession, TravelSessionStatus, UserProfile, WorldType } from '../types';
+import type {
+  ChatMessage,
+  CompanionPet,
+  Destination,
+  DiaryEntry,
+  ModalType,
+  Pet,
+  TravelRecord,
+  TravelSession,
+  TravelSessionStatus,
+  UserProfile,
+  WorldType,
+} from '../types';
 
 interface AppState {
   user: UserProfile;
@@ -19,6 +31,7 @@ interface AppState {
   preferenceSaveTarget: 'worldType' | 'close';
   selectedWorldType?: WorldType;
   selectedDestination?: Destination;
+  selectedCompanionPet?: CompanionPet;
   refreshRemoteState: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<boolean>;
@@ -32,6 +45,7 @@ interface AppState {
   setPreferenceSaveTarget: (target: 'worldType' | 'close') => void;
   setSelectedWorldType: (worldType: WorldType) => void;
   setSelectedDestination: (destination?: Destination) => void;
+  setSelectedCompanionPet: (companionPet?: CompanionPet) => void;
   startSession: (session: TravelSession) => void;
   setSessionStatus: (status: TravelSessionStatus) => void;
   setTravelPlan: (travelPlan: string[]) => void;
@@ -56,6 +70,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   preferenceSaveTarget: 'worldType',
   selectedWorldType: undefined,
   selectedDestination: undefined,
+  selectedCompanionPet: undefined,
 
   refreshRemoteState: async () => {
     const [user, pets, travelHistory] = await Promise.all([dbService.getUserProfile(), dbService.getPets(), dbService.getTravelHistory()]);
@@ -128,6 +143,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPreferenceSaveTarget: (target) => set({ preferenceSaveTarget: target }),
   setSelectedWorldType: (worldType) => set({ selectedWorldType: worldType, selectedDestination: undefined }),
   setSelectedDestination: (destination) => set({ selectedDestination: destination }),
+  setSelectedCompanionPet: (companionPet) => set({ selectedCompanionPet: companionPet }),
 
   startSession: (session) =>
     set({
@@ -135,6 +151,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeModal: null,
       selectedDestination: session.destination,
       selectedWorldType: session.worldType,
+      selectedCompanionPet: undefined,
     }),
 
   setSessionStatus: (status) =>
@@ -161,7 +178,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         : undefined,
     })),
 
-  endSession: () => set({ currentSession: undefined, selectedDestination: undefined }),
+  endSession: () => set({ currentSession: undefined, selectedDestination: undefined, selectedCompanionPet: undefined }),
 
   addTravelRecord: (record) => {
     const travelIndex = get().travelHistory.length + 1;

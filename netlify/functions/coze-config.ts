@@ -4,10 +4,12 @@ export const getCozeConfig = () => {
   const apiToken = process.env.COZE_API_TOKEN?.trim();
   const workflowId = process.env.COZE_WORKFLOW_ID?.trim();
   const apiBaseUrl = trimTrailingSlash(process.env.COZE_API_BASE_URL?.trim() || 'https://api.coze.cn');
+  const timeoutMs = Number(process.env.COZE_WORKFLOW_TIMEOUT_MS ?? 25000);
 
   return {
     apiToken,
     workflowId,
+    timeoutMs: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 25000,
     workflowRunUrl: getWorkflowRunUrl(apiBaseUrl),
   };
 };

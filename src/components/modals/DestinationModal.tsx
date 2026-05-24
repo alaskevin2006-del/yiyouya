@@ -22,6 +22,7 @@ export function DestinationModal() {
   const pet = useAppStore((state) => state.activePet);
   const selectedWorldType = useAppStore((state) => state.selectedWorldType);
   const selectedDestination = useAppStore((state) => state.selectedDestination);
+  const selectedCompanionPet = useAppStore((state) => state.selectedCompanionPet);
   const setSelectedDestination = useAppStore((state) => state.setSelectedDestination);
   const startSession = useAppStore((state) => state.startSession);
   const [customName, setCustomName] = useState('');
@@ -61,7 +62,7 @@ export function DestinationModal() {
   const launchSession = async (destination: Destination, launchWorldType: WorldType) => {
     if (!pet) return;
     setLoading(true);
-    const session = await travelService.startTravelSession(user, pet, destination, launchWorldType);
+    const session = await travelService.startTravelSession(user, pet, destination, launchWorldType, selectedCompanionPet ? [selectedCompanionPet] : []);
     startSession(session);
     setLoading(false);
     navigate(`/travel/session/${session.id}`);

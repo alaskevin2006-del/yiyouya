@@ -1,5 +1,5 @@
 import { agentService } from './agentService';
-import type { ChatMessage, Destination, Pet, TravelRecord, TravelSession, TravelSessionStatus, UserProfile, WorldType } from '../types';
+import type { ChatMessage, CompanionPet, Destination, Pet, TravelRecord, TravelSession, TravelSessionStatus, UserProfile, WorldType } from '../types';
 
 const createId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -11,8 +11,17 @@ const createPetMessage = (content: string): ChatMessage => ({
 });
 
 export const travelService = {
-  async startTravelSession(user: UserProfile, pet: Pet, destination: Destination, worldType: WorldType): Promise<TravelSession> {
+  async startTravelSession(
+    user: UserProfile,
+    pet: Pet,
+    destination: Destination,
+    worldType: WorldType,
+    companionPets: CompanionPet[] = [],
+  ): Promise<TravelSession> {
     const travelPlan = await agentService.generateTravelPlan(destination, pet);
+    const companionGreeting = companionPets[0]
+      ? createPetMessage(`${companionPets[0].petName} 也准备好同行了，我们会一起把 ${destination.name} 的见闻带回来。`)
+      : undefined;
     return {
       id: createId('session'),
       userId: user.id,
@@ -21,8 +30,9 @@ export const travelService = {
       worldType,
       status: 'planning',
       travelPlan,
-      messages: [createPetMessage(agentService.consumeLatestStartGreeting(destination))],
+      messages: [createPetMessage(agentService.consumeLatestStartGreeting(destination)), ...(companionGreeting ? [companionGreeting] : [])],
       diaryEntries: [],
+      companionPets,
       startedAt: new Date().toISOString(),
     };
   },
@@ -61,6 +71,7 @@ export const travelService = {
       travelIndex: 0,
       messages: [...session.messages, createPetMessage('这次旅行结束啦，我把所有记录都带回家了。')],
       diaryEntries: session.diaryEntries,
+      companionPets: session.companionPets,
       intimacyDelta: 1,
       createdAt: session.startedAt,
       endedAt,

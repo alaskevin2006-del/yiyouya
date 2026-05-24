@@ -3,12 +3,12 @@ import type { Pet } from '../types';
 export const mockPets: Pet[] = [
   {
     id: 'pet-mochi',
-    name: 'Mochi',
-    species: '虚拟旅伴猫',
+    name: '小蓝龙',
+    species: '虚拟旅伴龙',
     personality: '好奇、温柔、喜欢把路上的小事讲给主人听',
-    avatarUrl: '/mock-images/pet-mochi.png',
-    referenceImageUrl: '/mock-images/pet-mochi-reference.jpg',
-    description: 'MVP 阶段唯一可认领宠物，负责替主人探索世界并带回图文游记。',
+    avatarUrl: '/mock-images/pet-dragon-sway.webp',
+    referenceImageUrl: '/mock-images/pet-dragon-sway.webp',
+    description: '会轻轻摆动的蓝色小龙，负责替主人探索世界并带回图文游记。',
     source: 'mock',
   },
   {

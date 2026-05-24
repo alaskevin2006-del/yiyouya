@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { MessageList } from '../../components/travel/MessageList';
 import { agentService } from '../../services/agentService';
 import { travelService } from '../../services/travelService';
@@ -49,7 +49,6 @@ export function TravelSessionPage() {
       <section className="panel">
         <h2>没有找到当前旅行</h2>
         <p>如果是未完成旅行，请从首页历史足迹继续进入。</p>
-        <Link to="/">返回首页</Link>
       </section>
     );
   }
@@ -139,12 +138,9 @@ export function TravelSessionPage() {
           <h2>{activePet?.name ?? '宠物'}正在旅行：{session.destination.name}</h2>
           <p>{session.worldType === 'fantasy' ? '异世界' : '现实世界'} · 当前状态：{session.status}</p>
         </div>
-        <div className="toolbar-actions">
-          <button type="button" onClick={handleEnd} disabled={busy || session.status === 'ended'}>
-            结束旅行
-          </button>
-          <Link to="/">返回首页</Link>
-        </div>
+        <button className="session-end-button" type="button" onClick={handleEnd} disabled={busy || session.status === 'ended'}>
+          结束旅行
+        </button>
       </div>
 
       <div className="chat-shell">

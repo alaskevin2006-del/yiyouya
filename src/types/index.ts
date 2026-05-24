@@ -6,7 +6,16 @@ export type TravelSessionStatus =
   | 'pregenerating_next'
   | 'ended';
 
-export type ModalType = 'petSelect' | 'preference' | 'worldType' | 'destination' | 'travelSummary' | 'auth' | null;
+export type ModalType =
+  | 'petSelect'
+  | 'preference'
+  | 'worldType'
+  | 'invitePetPrompt'
+  | 'invitePetSelect'
+  | 'destination'
+  | 'travelSummary'
+  | 'auth'
+  | null;
 
 export type WorldType = 'real' | 'fantasy' | 'random';
 
@@ -32,6 +41,51 @@ export interface Pet {
   referenceImageUrl: string;
   description: string;
   source: 'mock' | 'custom' | 'future_api';
+}
+
+export interface FriendPet {
+  petId: string;
+  name: string;
+  type: string;
+  avatarUrl?: string;
+  personalityTags: string[];
+}
+
+export interface FriendUser {
+  userId: string;
+  nickname: string;
+  avatarUrl?: string;
+  bio: string;
+  pets: FriendPet[];
+  recentLocation?: string;
+  recentActivity?: string;
+}
+
+export interface CompanionPet {
+  userId: string;
+  userNickname: string;
+  petId: string;
+  petName: string;
+  petType: string;
+  petAvatarUrl?: string;
+}
+
+export interface PublicTravelLog {
+  id: string;
+  user: FriendUser;
+  pet: FriendPet;
+  location: string;
+  travelDate: string;
+  summary: string;
+  companionPets?: CompanionPet[];
+}
+
+export interface UserChatMessage {
+  id: string;
+  friendUserId: string;
+  sender: 'me' | 'friend';
+  text: string;
+  createdAt: string;
 }
 
 export interface Destination {
@@ -72,6 +126,7 @@ export interface TravelSession {
   travelPlan: string[];
   messages: ChatMessage[];
   diaryEntries: DiaryEntry[];
+  companionPets?: CompanionPet[];
   startedAt: string;
   endedAt?: string;
 }
@@ -86,6 +141,7 @@ export interface TravelRecord {
   travelIndex: number;
   messages: ChatMessage[];
   diaryEntries: DiaryEntry[];
+  companionPets?: CompanionPet[];
   intimacyDelta: number;
   createdAt: string;
   endedAt?: string;
