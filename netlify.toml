@@ -2,6 +2,9 @@
   command = "npm run build"
   publish = "dist"
 
+[functions]
+  included_files = ["sentient-travel-companion/**"]
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
