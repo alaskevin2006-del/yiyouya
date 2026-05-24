@@ -2,6 +2,21 @@ import type { Destination } from '../types';
 
 export const mockDestinations: Destination[] = [
   {
+    id: 'dest-zhuhai',
+    name: '珠海',
+    country: '中国',
+    description: '海风、校园红砖、日月贝和唐家古镇串起的一日手账路线。',
+    tags: ['海滨', '校园', '古镇'],
+    coverImageUrl: '/mock-images/zhuhai-song-song-duck.png',
+    imageUrls: [
+      '/mock-images/zhuhai-journal-campus.png',
+      '/mock-images/zhuhai-journal-opera.png',
+      '/mock-images/zhuhai-journal-town.png',
+    ],
+    source: 'mock',
+    worldType: 'real',
+  },
+  {
     id: 'dest-kyoto',
     name: '京都',
     country: '日本',

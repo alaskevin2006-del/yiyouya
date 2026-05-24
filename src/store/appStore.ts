@@ -3,6 +3,7 @@ import { mockPets } from '../mock/mockPets';
 import { mockTravels } from '../mock/mockTravels';
 import { mockUser } from '../mock/mockUser';
 import { dbService } from '../services/dbService';
+import { imageService } from '../services/imageService';
 import type {
   ChatMessage,
   CompanionPet,
@@ -51,6 +52,7 @@ interface AppState {
   setTravelPlan: (travelPlan: string[]) => void;
   addMessage: (message: ChatMessage) => void;
   addDiaryEntry: (entry: DiaryEntry) => void;
+  normalizeCurrentSessionImages: () => void;
   endSession: () => void;
   addTravelRecord: (record: TravelRecord) => void;
   showTravelSummary: (record: TravelRecord) => void;
@@ -177,6 +179,28 @@ export const useAppStore = create<AppState>((set, get) => ({
         ? { ...state.currentSession, diaryEntries: [...state.currentSession.diaryEntries, entry] }
         : undefined,
     })),
+
+  normalizeCurrentSessionImages: () =>
+    set((state) => {
+      const session = state.currentSession;
+      if (!session) return {};
+      const normalizeUrl = (url: string | undefined, index: number) =>
+        url?.includes('_mock-visual.svg') ? imageService.getDiaryEntryImage(session.destination, index + 1) : url;
+
+      return {
+        currentSession: {
+          ...session,
+          messages: session.messages.map((message, index) => ({
+            ...message,
+            imageUrl: normalizeUrl(message.imageUrl, index),
+          })),
+          diaryEntries: session.diaryEntries.map((entry, index) => ({
+            ...entry,
+            imageUrl: normalizeUrl(entry.imageUrl, index) ?? entry.imageUrl,
+          })),
+        },
+      };
+    }),
 
   endSession: () => set({ currentSession: undefined, selectedDestination: undefined, selectedCompanionPet: undefined }),
 

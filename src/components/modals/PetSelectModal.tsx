@@ -22,14 +22,22 @@ export function PetSelectModal() {
   const openModal = useAppStore((state) => state.openModal);
   const setPreferenceSaveTarget = useAppStore((state) => state.setPreferenceSaveTarget);
   const pets = useAppStore((state) => state.pets);
+  const activePet = useAppStore((state) => state.activePet);
   const hasPreferences = useAppStore((state) => Boolean(state.user.preferenceSummary));
   const [index, setIndex] = useState(0);
   const [customName, setCustomName] = useState('');
 
   const pet = pets[index] ?? pets[0];
+  const tags = pet?.tags?.slice(0, 5) ?? pet?.personality.split('、').slice(0, 5) ?? [];
 
-  const goNext = () => setIndex((current) => (current + 1) % pets.length);
-  const goPrev = () => setIndex((current) => (current - 1 + pets.length) % pets.length);
+  const goNext = () => {
+    if (pets.length === 0) return;
+    setIndex((current) => (current + 1) % pets.length);
+  };
+  const goPrev = () => {
+    if (pets.length === 0) return;
+    setIndex((current) => (current - 1 + pets.length) % pets.length);
+  };
 
   const continueFlow = () => {
     setPreferenceSaveTarget('worldType');
@@ -37,6 +45,7 @@ export function PetSelectModal() {
   };
 
   const handleConfirm = () => {
+    if (!pet) return;
     selectPet(pet);
     continueFlow();
   };
@@ -53,25 +62,51 @@ export function PetSelectModal() {
   return (
     <Modal title="选择你的旅行宠物" open={activeModal === 'petSelect'} onClose={closeModal}>
       <div className="modal-body">
-        <div className="pet-carousel">
-          <button type="button" onClick={goPrev}>
-            上一个
-          </button>
-          <div className="pet-option">
-            <img src={pet.referenceImageUrl} alt={`${pet.name} reference`} />
-            <div>
-              <h3>{pet.name}</h3>
-              <p>{pet.species}</p>
-              <p>{pet.personality}</p>
-              <p>{pet.description}</p>
+        {pet ? (
+          <div className="pet-carousel modal-pet-carousel">
+            <button type="button" onClick={goPrev} aria-label="上一个宠物">
+              ‹
+            </button>
+            <div className={`pet-option theme-${pet.theme ?? 'ivory'}${activePet?.id === pet.id ? ' selected' : ''}`}>
+              <img src={pet.referenceImageUrl || pet.avatarUrl} alt={`${pet.name} reference`} />
+              <div>
+                <span className="pet-type-label">{pet.type?.toUpperCase() ?? pet.species}</span>
+                <h3>{pet.displayName ?? pet.name}</h3>
+                <p className="modal-pet-intro">{pet.shortIntro ?? pet.description}</p>
+                <div className="pet-tags">
+                  {tags.map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
+                </div>
+                <p className="journal-style">游记风格：{pet.journalStyle ?? pet.personality}</p>
+              </div>
             </div>
+            <button type="button" onClick={goNext} aria-label="下一个宠物">
+              ›
+            </button>
           </div>
-          <button type="button" onClick={goNext}>
-            下一个
-          </button>
+        ) : (
+          <div className="empty-state compact">
+            <h3>暂无可选宠物</h3>
+            <p>可以先创建一个自定义宠物。</p>
+          </div>
+        )}
+
+        <div className="modal-pet-dots" aria-label="宠物选项">
+          {pets.map((item, petIndex) => (
+            <button
+              key={item.id}
+              className={petIndex === index ? 'active' : ''}
+              type="button"
+              onClick={() => setIndex(petIndex)}
+              aria-label={`选择预览${item.displayName ?? item.name}`}
+              aria-pressed={petIndex === index}
+            />
+          ))}
         </div>
-        <button className="primary-button" type="button" onClick={handleConfirm}>
-          确认选择
+
+        <button className="primary-button" type="button" onClick={handleConfirm} disabled={!pet}>
+          {activePet?.id === pet?.id ? '继续使用当前伙伴' : '确认选择'}
         </button>
         <div className="custom-pet-box">
           <label className="field">

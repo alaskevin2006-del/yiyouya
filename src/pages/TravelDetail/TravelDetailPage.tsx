@@ -1,8 +1,18 @@
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { DiaryList } from '../../components/travel/DiaryList';
 import { MessageList } from '../../components/travel/MessageList';
 import { useAppStore } from '../../store/appStore';
+import type { ChatMessage } from '../../types';
+
+const createUserMessage = (content: string): ChatMessage => ({
+  id: `memory-chat-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  role: 'user',
+  content,
+  createdAt: new Date().toISOString(),
+});
+
+const uniqueImageUrls = (urls: Array<string | undefined>) => Array.from(new Set(urls.filter((url): url is string => Boolean(url?.trim()))));
 
 export function TravelDetailPage() {
   const { travelId } = useParams();
@@ -10,6 +20,10 @@ export function TravelDetailPage() {
   const pet = useAppStore((state) => state.pets.find((item) => item.id === record?.petId));
   const [showConversation, setShowConversation] = useState(false);
   const [showFarewell, setShowFarewell] = useState(false);
+  const [conversationInput, setConversationInput] = useState('');
+  const [conversationMessages, setConversationMessages] = useState<ChatMessage[]>([]);
+  const [feedbackChoice, setFeedbackChoice] = useState<'like' | 'dislike' | undefined>();
+  const memoryPetAvatarUrl = pet?.avatarUrl ?? '/assets/home-pet-example.svg';
 
   useEffect(() => {
     if (!showFarewell) return undefined;
@@ -17,9 +31,26 @@ export function TravelDetailPage() {
     return () => window.clearTimeout(timer);
   }, [showFarewell]);
 
+  useEffect(() => {
+    setConversationMessages(record?.messages ?? []);
+    setConversationInput('');
+  }, [record?.id, record?.messages]);
+
   const closeConversation = () => {
     setShowConversation(false);
     setShowFarewell(true);
+  };
+
+  const handleConversationSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const content = conversationInput.trim();
+    if (!content) return;
+    setConversationMessages((messages) => [...messages, createUserMessage(content)]);
+    setConversationInput('');
+  };
+
+  const handleFeedbackSubmit = (event: FormEvent) => {
+    event.preventDefault();
   };
 
   if (!record) {
@@ -30,6 +61,12 @@ export function TravelDetailPage() {
       </section>
     );
   }
+
+  const journalSnapshots = uniqueImageUrls([
+    ...record.diaryEntries.map((entry) => entry.imageUrl),
+    record.destination.coverImageUrl,
+    ...record.destination.imageUrls,
+  ]);
 
   return (
     <div className="detail-page">
@@ -54,10 +91,10 @@ export function TravelDetailPage() {
           </div>
         </div>
         <p className="detail-description">{record.destination.description}</p>
-        <DiaryList entries={record.diaryEntries} />
+        <DiaryList entries={record.diaryEntries} showTitle={false} />
         <div className="image-strip detail-image-strip">
-          {[record.destination.coverImageUrl, ...record.destination.imageUrls].map((url) => (
-            <img src={url} alt={record.destination.name} key={url} />
+          {journalSnapshots.map((url, index) => (
+            <img src={url} alt={`${record.destination.name} 手账截图 ${index + 1}`} key={`${url}-${index}`} />
           ))}
         </div>
       </section>
@@ -67,15 +104,44 @@ export function TravelDetailPage() {
           <h2>和你的宠物对话</h2>
           <p>回到这次旅程里的对话现场，左侧保留最初生成的手账日记。</p>
         </div>
-        <button className="history-chat-button-inline" type="button" onClick={() => setShowConversation(true)}>
-          打开对话
-        </button>
+        <form className="memory-chat-form" onSubmit={handleConversationSubmit}>
+          <input
+            value={conversationInput}
+            onChange={(event) => setConversationInput(event.target.value)}
+            onFocus={() => setShowConversation(true)}
+            aria-label="和宠物对话输入"
+            placeholder="写一句想对宠物说的话"
+          />
+          <button className="history-chat-button-inline" type="submit">
+            提交
+          </button>
+        </form>
       </section>
-      <section className="panel detail-feedback-card">
+      <form className="panel detail-feedback-card" onSubmit={handleFeedbackSubmit}>
         <h2>Feedback</h2>
-        <input placeholder="写一点对这次旅行的反馈" />
+        <div className="feedback-choice-row" role="group" aria-label="旅行反馈">
+          <button
+            className={feedbackChoice === 'like' ? 'selected' : ''}
+            type="button"
+            onClick={() => setFeedbackChoice('like')}
+            aria-pressed={feedbackChoice === 'like'}
+          >
+            喜欢
+          </button>
+          <button
+            className={feedbackChoice === 'dislike' ? 'selected' : ''}
+            type="button"
+            onClick={() => setFeedbackChoice('dislike')}
+            aria-pressed={feedbackChoice === 'dislike'}
+          >
+            不喜欢
+          </button>
+          <button className="primary-button" type="submit" disabled={!feedbackChoice}>
+            提交
+          </button>
+        </div>
         <p>亲密值变化：+{record.intimacyDelta}</p>
-      </section>
+      </form>
       {showConversation && (
         <div className="conversation-overlay" role="dialog" aria-modal="true" aria-label="和你的宠物对话">
           <div className="conversation-sheet">
@@ -98,11 +164,20 @@ export function TravelDetailPage() {
               <section className="panel conversation-chat-card">
                 {pet && (
                   <div className="chat-pet-appearance">
-                    <img src="/assets/home-pet-example.svg" alt={pet.name} />
+                    <img src={memoryPetAvatarUrl} alt={pet.name} />
                     <span>{pet.name} 出现了</span>
                   </div>
                 )}
-                <MessageList messages={record.messages} />
+                <MessageList messages={conversationMessages} />
+                <form className="chat-input conversation-chat-input" onSubmit={handleConversationSubmit}>
+                  <input
+                    value={conversationInput}
+                    onChange={(event) => setConversationInput(event.target.value)}
+                    aria-label="和宠物对话输入"
+                    placeholder="写一句想对宠物说的话"
+                  />
+                  <button type="submit">发送</button>
+                </form>
               </section>
             </div>
           </div>
@@ -110,7 +185,7 @@ export function TravelDetailPage() {
       )}
       {showFarewell && (
         <div className="pet-farewell" role="status">
-          <img src="/assets/home-pet-example.svg" alt="" />
+          <img src={memoryPetAvatarUrl} alt="" />
           <span>主人我累了，拜拜</span>
         </div>
       )}

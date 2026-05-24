@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Pet, UserProfile } from '../../types';
 
 interface PetShowcaseProps {
@@ -12,148 +12,115 @@ interface PetShowcaseProps {
   onUpdatePet: (petId: string, updates: Partial<Pick<Pet, 'personality' | 'description'>>) => void;
 }
 
-export function PetShowcase({ user, pets, pet, onStartJourney, onClaimPet, onEditPreferences, onSelectPet, onUpdatePet }: PetShowcaseProps) {
-  const displayPet =
-    pet?.id === 'pet-mochi'
-      ? {
-          ...pet,
-          name: '小蓝龙',
-          species: '虚拟旅伴龙',
-          avatarUrl: '/mock-images/pet-dragon-sway.webp',
-        }
-      : pet;
-  const isAnimatedDragon = displayPet?.avatarUrl.endsWith('.webp') ?? false;
-  const activeIndex = Math.max(
-    0,
-    pets.findIndex((item) => item.id === pet?.id),
-  );
-  const [editing, setEditing] = useState(false);
-  const [personality, setPersonality] = useState(pet?.personality ?? '');
-  const [description, setDescription] = useState(pet?.description ?? '');
+const fallbackPets: Pet[] = [];
+
+export function PetShowcase({ user, pets, pet, onStartJourney, onClaimPet, onEditPreferences, onSelectPet }: PetShowcaseProps) {
+  const showcasePets = pets.length > 0 ? pets : fallbackPets;
+  const defaultPet = useMemo(() => pet ?? showcasePets.find((item) => item.id === 'cat') ?? showcasePets[0], [pet, showcasePets]);
+  const [displayPetId, setDisplayPetId] = useState(defaultPet?.id);
 
   useEffect(() => {
-    setPersonality(pet?.personality ?? '');
-    setDescription(pet?.description ?? '');
-    setEditing(false);
-  }, [pet?.id, pet?.personality, pet?.description]);
+    setDisplayPetId(defaultPet?.id);
+  }, [defaultPet?.id]);
+
+  const activeIndex = Math.max(
+    0,
+    showcasePets.findIndex((item) => item.id === displayPetId),
+  );
+  const displayPet = showcasePets[activeIndex];
+  const selectedPetId = pet?.id;
+  const isSelected = Boolean(displayPet && displayPet.id === selectedPetId);
+  const theme = displayPet?.theme ?? 'ivory';
+  const animationStyle = displayPet?.animationStyle ?? 'elegant-float';
+  const tags = displayPet?.tags?.slice(0, 5) ?? displayPet?.personality.split('、').slice(0, 5) ?? [];
+  const showcaseAvatarUrl = displayPet?.avatarUrl;
 
   const switchPet = (direction: -1 | 1) => {
-    if (pets.length === 0) return;
-    const nextIndex = (activeIndex + direction + pets.length) % pets.length;
-    onSelectPet(pets[nextIndex]);
+    if (showcasePets.length === 0) return;
+    const nextIndex = (activeIndex + direction + showcasePets.length) % showcasePets.length;
+    setDisplayPetId(showcasePets[nextIndex].id);
   };
 
-  const handleSave = () => {
-    if (!pet) return;
-    onUpdatePet(pet.id, { personality, description });
-    setEditing(false);
+  const selectDisplayPet = () => {
+    if (!displayPet) return;
+    onSelectPet(displayPet);
   };
 
   return (
-    <section className={`panel pet-showcase${isAnimatedDragon ? ' dragon-showcase' : ''}`}>
-      {/* UI-only hero area: keep all callback props unchanged so the travel flow remains intact. */}
+    <section className={`panel pet-showcase pet-showcase-${theme}`}>
       <div className="pet-showcase-header">
-        <span className="eyebrow">AI Companion</span>
+        <span className="eyebrow">Choose Your Travel Companion</span>
         <button className="soft-button" type="button" onClick={onEditPreferences}>
           编辑个人偏好
         </button>
       </div>
-      <div className="hero-copy">
-        <h2>
-          Your Journey,
-          <span> Perfected Together</span>
-        </h2>
-        <p>让宠物替你出发、观察、记录，把远方变成一段可以慢慢翻看的陪伴。</p>
+
+      <div className="hero-copy pet-carousel-copy">
+        <h2>选择替你看世界的伙伴</h2>
+        <p>它会带着自己的性格，替你出发、记录、想念你。</p>
       </div>
 
       {displayPet ? (
         <>
-          <div className="main-pet-stage">
+          <div className="main-pet-stage pet-carousel-stage">
             <button className="pet-arrow" type="button" onClick={() => switchPet(-1)} aria-label="切换到上一个宠物">
               ‹
             </button>
-            <div className="main-pet-card">
-              <div className={`pet-image-wrap${isAnimatedDragon ? ' animated-pet' : ''}`}>
-                <img src={displayPet.avatarUrl} alt={displayPet.name} />
+
+            <article className={`main-pet-card pet-carousel-card ${isSelected ? 'selected' : ''}`}>
+              <div className={`pet-image-wrap pet-avatar-stage ${animationStyle}`}>
+                <span className="pet-glow" aria-hidden="true" />
+                <img src={showcaseAvatarUrl} alt={displayPet.displayName ?? displayPet.name} />
                 <span className="intimacy-badge">亲密度 {user.intimacyValue}</span>
               </div>
-              {!isAnimatedDragon && (
+
+              <div className="pet-copy-panel">
                 <div className="pet-nameplate">
-                  <h3>{displayPet.name}</h3>
-                  <p>{displayPet.species}</p>
+                  <span className="pet-type-label">{displayPet.type?.toUpperCase() ?? displayPet.species}</span>
+                  <h3>{displayPet.displayName ?? displayPet.name}</h3>
+                  <p>它会叫你：{displayPet.callUser ?? user.nickname}</p>
                 </div>
-              )}
-              {!isAnimatedDragon && editing ? (
-                <div className="pet-edit-box">
-                  <label className="field compact-field">
-                    <span>宠物特点</span>
-                    <textarea rows={1} value={personality} onChange={(event) => setPersonality(event.target.value)} />
-                  </label>
-                  <div className="pet-edit-actions">
-                    <button type="button" onClick={() => setEditing(false)}>
-                      取消
-                    </button>
-                    <button className="primary-button" type="button" onClick={handleSave}>
-                      保存特点
-                    </button>
-                  </div>
+
+                <div className="pet-tags" aria-label="性格标签">
+                  {tags.map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
                 </div>
-              ) : null}
-              {!isAnimatedDragon && !editing ? (
+
                 <div className="pet-profile-copy">
-                  <div className="pet-trait-row">
-                    <p className="speech-bubble">{displayPet.personality}</p>
-                    <button className="trait-menu-button" type="button" onClick={() => setEditing(true)} aria-label="编辑宠物特点">
-                      <span />
-                      <span />
-                      <span />
-                    </button>
-                  </div>
-                  <p>认领你的 AI 旅行宠物，让它替你探索世界并带回图文游记。</p>
+                  <p className="speech-bubble">{displayPet.shortIntro ?? displayPet.description}</p>
+                  <p className="journal-style">游记风格：{displayPet.journalStyle ?? displayPet.personality}</p>
                 </div>
-              ) : null}
-            </div>
+              </div>
+            </article>
+
             <button className="pet-arrow" type="button" onClick={() => switchPet(1)} aria-label="切换到下一个宠物">
               ›
             </button>
           </div>
 
-          {isAnimatedDragon && (
-            <div className="dragon-copy-layer">
-              <div className="pet-nameplate">
-                <h3>{displayPet.name}</h3>
-                <p>{displayPet.species}</p>
-              </div>
-              {editing ? (
-              <div className="pet-edit-box">
-                <label className="field compact-field">
-                  <span>宠物特点</span>
-                  <textarea rows={1} value={personality} onChange={(event) => setPersonality(event.target.value)} />
-                </label>
-                <div className="pet-edit-actions">
-                  <button type="button" onClick={() => setEditing(false)}>
-                    取消
-                  </button>
-                  <button className="primary-button" type="button" onClick={handleSave}>
-                    保存特点
-                  </button>
-                </div>
-              </div>
-              ) : (
-                <div className="pet-profile-copy">
-                  <div className="pet-trait-row">
-                    <p className="speech-bubble">{displayPet.personality}</p>
-                    <button className="trait-menu-button" type="button" onClick={() => setEditing(true)} aria-label="编辑宠物特点">
-                      <span />
-                      <span />
-                      <span />
-                    </button>
-                  </div>
-                  <p>认领你的 AI 旅行宠物，让它替你探索世界并带回图文游记。</p>
-                </div>
-              )}
-            </div>
-            )}
+          <div className="pet-indicators" aria-label="宠物切换">
+            {showcasePets.map((item) => (
+              <button
+                key={item.id}
+                className={item.id === displayPet.id ? 'active' : ''}
+                type="button"
+                onClick={() => setDisplayPetId(item.id)}
+                aria-label={`切换到${item.displayName ?? item.name}`}
+                aria-pressed={item.id === displayPet.id}
+              />
+            ))}
+          </div>
+
+          <div className="pet-actions centered">
+            <button className="primary-button pet-select-button" type="button" onClick={selectDisplayPet} disabled={isSelected}>
+              {isSelected ? '当前伙伴' : '选择这只宠物'}
+            </button>
+            <button className="start-button" type="button" onClick={onStartJourney}>
+              <span className="start-gem" aria-hidden="true" />
+              Start Journey
+            </button>
+          </div>
         </>
       ) : (
         <div className="empty-state">
@@ -165,13 +132,6 @@ export function PetShowcase({ user, pets, pet, onStartJourney, onClaimPet, onEdi
         </div>
       )}
 
-      <div className="pet-actions centered">
-        {/* Start Journey keeps the original onStartJourney binding; only the visual shell changed. */}
-        <button className="start-button" type="button" onClick={onStartJourney}>
-          <span className="start-gem" aria-hidden="true" />
-          Start Journey
-        </button>
-      </div>
       <div className="feature-bar" aria-label="核心能力">
         <div>
           <span>✦</span>

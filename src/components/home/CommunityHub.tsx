@@ -7,25 +7,25 @@ export function CommunityHub() {
   const [activeTab, setActiveTab] = useState<'discover' | 'friends' | 'feedback' | 'following'>('discover');
   const communityItems = [
     {
-      author: 'Lena Explorer',
-      text: '刚从冰岛回来，带回一张像月光一样冷的瀑布照片。',
+      author: 'Blue Dragon',
+      text: '傍晚在珠海海边坐了一会儿，小龙带着蛋挞看完了整片落日。',
       meta: '128 喜欢 · 24 回应',
-      place: 'Iceland',
-      imageUrl: '/mock-images/reykjavik-cover.jpg',
+      place: 'Zhuhai',
+      imageUrl: '/mock-images/zhuhai-dragon-sunset.jpg',
     },
     {
-      author: 'Wanderer Kai',
-      text: '今晚的京都雨声很轻，Mochi 说石板路适合慢慢走。',
+      author: 'Panda Walker',
+      text: '雨后的老茶巷很安静，Panda 在青石板路上闻到了热茶香。',
       meta: '96 喜欢 · 18 回应',
-      place: 'Kyoto',
-      imageUrl: '/mock-images/kyoto-cover.jpg',
+      place: 'Tea Alley',
+      imageUrl: '/mock-images/tea-alley-panda.jpg',
     },
     {
-      author: 'Room With Me',
-      text: '海边路线已收进手账，下一站想让宠物替我去看落日。',
+      author: 'Miu Rooftop',
+      text: '上海入夜后灯光刚亮，Miu 在露台边守着咖啡和黄浦江。',
       meta: '76 喜欢 · 15 回应',
-      place: 'Coast',
-      imageUrl: '/mock-images/lisbon-cover.jpg',
+      place: 'Shanghai',
+      imageUrl: '/mock-images/shanghai-night-cat.jpg',
     },
   ];
   const friendItems = [
