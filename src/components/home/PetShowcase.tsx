@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAppStore } from '../../store/appStore';
 import type { Pet, UserProfile } from '../../types';
-import { AuthModal } from '../modals/AuthModal';
 
 interface PetShowcaseProps {
   user: UserProfile;
@@ -15,10 +13,16 @@ interface PetShowcaseProps {
 }
 
 export function PetShowcase({ user, pets, pet, onStartJourney, onClaimPet, onEditPreferences, onSelectPet, onUpdatePet }: PetShowcaseProps) {
-  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
-  const authEmail = useAppStore((state) => state.authEmail);
-  const openModal = useAppStore((state) => state.openModal);
-  const signOut = useAppStore((state) => state.signOut);
+  const displayPet =
+    pet?.id === 'pet-mochi'
+      ? {
+          ...pet,
+          name: '小蓝龙',
+          species: '虚拟旅伴龙',
+          avatarUrl: '/mock-images/pet-dragon-sway.webp',
+        }
+      : pet;
+  const isAnimatedDragon = displayPet?.avatarUrl.endsWith('.webp') ?? false;
   const activeIndex = Math.max(
     0,
     pets.findIndex((item) => item.id === pet?.id),
@@ -46,17 +50,12 @@ export function PetShowcase({ user, pets, pet, onStartJourney, onClaimPet, onEdi
   };
 
   return (
-    <section className="panel pet-showcase">
+    <section className={`panel pet-showcase${isAnimatedDragon ? ' dragon-showcase' : ''}`}>
       {/* UI-only hero area: keep all callback props unchanged so the travel flow remains intact. */}
       <div className="pet-showcase-header">
         <span className="eyebrow">AI Companion</span>
         <button className="soft-button" type="button" onClick={onEditPreferences}>
           编辑个人偏好
-        </button>
-      </div>
-      <div className="pet-header-actions auth-entry">
-        <button className="soft-button" type="button" onClick={isAuthenticated ? () => void signOut() : () => openModal('auth')}>
-          {isAuthenticated ? authEmail ?? '退出登录' : '邮箱登录'}
         </button>
       </div>
       <div className="hero-copy">
@@ -67,31 +66,69 @@ export function PetShowcase({ user, pets, pet, onStartJourney, onClaimPet, onEdi
         <p>让宠物替你出发、观察、记录，把远方变成一段可以慢慢翻看的陪伴。</p>
       </div>
 
-      {pet ? (
-        <div className="main-pet-stage">
-          <button className="pet-arrow" type="button" onClick={() => switchPet(-1)} aria-label="切换到上一个宠物">
-            ‹
-          </button>
-          <div className="main-pet-card">
-            <div className="pet-image-wrap">
-              <img src="/assets/home-pet-example.svg" alt={pet.name} />
-              <span className="intimacy-badge">亲密度 {user.intimacyValue}</span>
-              <span className="pet-orbit one" aria-hidden="true" />
-              <span className="pet-orbit two" aria-hidden="true" />
+      {displayPet ? (
+        <>
+          <div className="main-pet-stage">
+            <button className="pet-arrow" type="button" onClick={() => switchPet(-1)} aria-label="切换到上一个宠物">
+              ‹
+            </button>
+            <div className="main-pet-card">
+              <div className={`pet-image-wrap${isAnimatedDragon ? ' animated-pet' : ''}`}>
+                <img src={displayPet.avatarUrl} alt={displayPet.name} />
+                <span className="intimacy-badge">亲密度 {user.intimacyValue}</span>
+              </div>
+              {!isAnimatedDragon && (
+                <div className="pet-nameplate">
+                  <h3>{displayPet.name}</h3>
+                  <p>{displayPet.species}</p>
+                </div>
+              )}
+              {!isAnimatedDragon && editing ? (
+                <div className="pet-edit-box">
+                  <label className="field compact-field">
+                    <span>宠物特点</span>
+                    <textarea rows={1} value={personality} onChange={(event) => setPersonality(event.target.value)} />
+                  </label>
+                  <div className="pet-edit-actions">
+                    <button type="button" onClick={() => setEditing(false)}>
+                      取消
+                    </button>
+                    <button className="primary-button" type="button" onClick={handleSave}>
+                      保存特点
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {!isAnimatedDragon && !editing ? (
+                <div className="pet-profile-copy">
+                  <div className="pet-trait-row">
+                    <p className="speech-bubble">{displayPet.personality}</p>
+                    <button className="trait-menu-button" type="button" onClick={() => setEditing(true)} aria-label="编辑宠物特点">
+                      <span />
+                      <span />
+                      <span />
+                    </button>
+                  </div>
+                  <p>认领你的 AI 旅行宠物，让它替你探索世界并带回图文游记。</p>
+                </div>
+              ) : null}
             </div>
-            <div className="pet-nameplate">
-              <h3>{pet.name}</h3>
-              <p>{pet.species}</p>
-            </div>
-            {editing ? (
+            <button className="pet-arrow" type="button" onClick={() => switchPet(1)} aria-label="切换到下一个宠物">
+              ›
+            </button>
+          </div>
+
+          {isAnimatedDragon && (
+            <div className="dragon-copy-layer">
+              <div className="pet-nameplate">
+                <h3>{displayPet.name}</h3>
+                <p>{displayPet.species}</p>
+              </div>
+              {editing ? (
               <div className="pet-edit-box">
-                <label className="field">
+                <label className="field compact-field">
                   <span>宠物特点</span>
-                  <textarea value={personality} onChange={(event) => setPersonality(event.target.value)} />
-                </label>
-                <label className="field">
-                  <span>描述</span>
-                  <textarea value={description} onChange={(event) => setDescription(event.target.value)} />
+                  <textarea rows={1} value={personality} onChange={(event) => setPersonality(event.target.value)} />
                 </label>
                 <div className="pet-edit-actions">
                   <button type="button" onClick={() => setEditing(false)}>
@@ -102,20 +139,22 @@ export function PetShowcase({ user, pets, pet, onStartJourney, onClaimPet, onEdi
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="pet-profile-copy">
-                <p className="speech-bubble">{pet.personality}</p>
-                <p>认领你的 AI 旅行宠物，让它替你探索世界并带回图文游记。</p>
-                <button type="button" onClick={() => setEditing(true)}>
-                  编辑宠物特点
-                </button>
-              </div>
+              ) : (
+                <div className="pet-profile-copy">
+                  <div className="pet-trait-row">
+                    <p className="speech-bubble">{displayPet.personality}</p>
+                    <button className="trait-menu-button" type="button" onClick={() => setEditing(true)} aria-label="编辑宠物特点">
+                      <span />
+                      <span />
+                      <span />
+                    </button>
+                  </div>
+                  <p>认领你的 AI 旅行宠物，让它替你探索世界并带回图文游记。</p>
+                </div>
+              )}
+            </div>
             )}
-          </div>
-          <button className="pet-arrow" type="button" onClick={() => switchPet(1)} aria-label="切换到下一个宠物">
-            ›
-          </button>
-        </div>
+        </>
       ) : (
         <div className="empty-state">
           <h3>还没有认领宠物</h3>
@@ -155,7 +194,6 @@ export function PetShowcase({ user, pets, pet, onStartJourney, onClaimPet, onEdi
           <small>长期陪伴式记忆</small>
         </div>
       </div>
-      <AuthModal />
     </section>
   );
 }
