@@ -13,10 +13,11 @@ const createUserMessage = (content: string): ChatMessage => ({
   createdAt: new Date().toISOString(),
 });
 
-const createPetMessage = (content: string): ChatMessage => ({
+const createPetMessage = (content: string, imageUrl?: string): ChatMessage => ({
   id: `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`,
   role: 'pet',
   content,
+  imageUrl,
   createdAt: new Date().toISOString(),
 });
 
@@ -28,6 +29,7 @@ export function TravelSessionPage() {
   const activePet = useAppStore((state) => state.activePet);
   const addMessage = useAppStore((state) => state.addMessage);
   const addDiaryEntry = useAppStore((state) => state.addDiaryEntry);
+  const normalizeCurrentSessionImages = useAppStore((state) => state.normalizeCurrentSessionImages);
   const setSessionStatus = useAppStore((state) => state.setSessionStatus);
   const addTravelRecord = useAppStore((state) => state.addTravelRecord);
   const showTravelSummary = useAppStore((state) => state.showTravelSummary);
@@ -44,6 +46,10 @@ export function TravelSessionPage() {
     return () => window.clearTimeout(timer);
   }, [addMessage, session, sessionId, setSessionStatus]);
 
+  useEffect(() => {
+    normalizeCurrentSessionImages();
+  }, [normalizeCurrentSessionImages, session?.id, session?.messages.length]);
+
   if (!session || session.id !== sessionId) {
     return (
       <section className="panel">
@@ -59,7 +65,7 @@ export function TravelSessionPage() {
     const latestSession = useAppStore.getState().currentSession ?? session;
     const entry = await agentService.generateDiaryEntry(latestSession.destination, latestSession.diaryEntries.length + 1);
     addDiaryEntry(entry);
-    addMessage(createPetMessage(`${entry.title}：${entry.content}`));
+    addMessage(createPetMessage(`${entry.title}：${entry.content}`, entry.imageUrl));
     setSessionStatus('active');
     setBusy(false);
   };
@@ -90,7 +96,7 @@ export function TravelSessionPage() {
     if (latestSession.diaryEntries.length > 0) return latestSession;
     const entry = await agentService.generateDiaryEntry(latestSession.destination, 1);
     addDiaryEntry(entry);
-    addMessage(createPetMessage(`${entry.title}：${entry.content}`));
+    addMessage(createPetMessage(`${entry.title}：${entry.content}`, entry.imageUrl));
     return useAppStore.getState().currentSession ?? latestSession;
   };
 

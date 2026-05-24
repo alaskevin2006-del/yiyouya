@@ -2,12 +2,13 @@ import type { DiaryEntry } from '../../types';
 
 interface DiaryListProps {
   entries: DiaryEntry[];
+  showTitle?: boolean;
 }
 
-export function DiaryList({ entries }: DiaryListProps) {
+export function DiaryList({ entries, showTitle = true }: DiaryListProps) {
   return (
     <section className="panel diary-panel">
-      <h2>图文游记</h2>
+      {showTitle && <h2>图文游记</h2>}
       {entries.map((entry) => (
         <article className="diary-entry" key={entry.id}>
           <img src={entry.imageUrl} alt={entry.title} />

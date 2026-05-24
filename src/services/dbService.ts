@@ -93,6 +93,47 @@ let remotePets: Pet[] = [];
 let customPets: Pet[] = [];
 let authUser: SupabaseAuthUser | undefined;
 
+const storageKeys = {
+  user: 'stwfm:userProfile',
+  travels: 'stwfm:travelHistory',
+  customPets: 'stwfm:customPets',
+};
+
+const isBrowser = () => typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+
+const readLocal = <T>(key: string): T | undefined => {
+  if (!isBrowser()) return undefined;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return undefined;
+    return JSON.parse(raw) as T;
+  } catch {
+    return undefined;
+  }
+};
+
+const writeLocal = (key: string, value: unknown) => {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    return;
+  }
+};
+
+const hydrateFromLocalStorage = () => {
+  if (supabase) return;
+  const storedUser = readLocal<UserProfile>(storageKeys.user);
+  const storedTravels = readLocal<TravelRecord[]>(storageKeys.travels);
+  const storedCustomPets = readLocal<Pet[]>(storageKeys.customPets);
+
+  if (storedUser?.id) userProfile = { ...mockUser, ...storedUser, id: storedUser.id || demoUserId };
+  if (Array.isArray(storedTravels) && storedTravels.length) travelHistory = storedTravels;
+  if (Array.isArray(storedCustomPets) && storedCustomPets.length) customPets = storedCustomPets;
+};
+
+hydrateFromLocalStorage();
+
 const warnSupabaseFailure = (operation: string, error: unknown) => {
   console.warn(`[dbService] Supabase ${operation} failed; using mock fallback.`, error);
 };
@@ -267,9 +308,11 @@ const upsertMockTravelRecord = (record: TravelRecord) => {
   const existingIndex = travelHistory.findIndex((travel) => travel.id === record.id);
   if (existingIndex >= 0) {
     travelHistory = travelHistory.map((travel) => (travel.id === record.id ? record : travel));
+    writeLocal(storageKeys.travels, travelHistory);
     return;
   }
   travelHistory = [record, ...travelHistory];
+  writeLocal(storageKeys.travels, travelHistory);
 };
 
 const createDefaultPetRows = (userId: string): PetRow[] =>
@@ -341,6 +384,8 @@ const useDemoProfile = () => {
   userProfile = { ...mockUser, id: demoUserId };
   remotePets = [];
   customPets = [];
+  writeLocal(storageKeys.user, userProfile);
+  writeLocal(storageKeys.customPets, customPets);
 };
 
 export const dbService = {
@@ -423,6 +468,7 @@ export const dbService = {
 
   async saveSelectedPet(pet: Pet): Promise<UserProfile> {
     userProfile = { ...userProfile, activePetId: pet.id };
+    writeLocal(storageKeys.user, userProfile);
     if (!supabase) return Promise.resolve(cloneUser());
     try {
       const { error } = await supabase
@@ -448,6 +494,7 @@ export const dbService = {
       preferenceText: nextPreferences.preferenceText,
       preferenceSummary: nextPreferences.preferenceSummary,
     };
+    writeLocal(storageKeys.user, userProfile);
     if (!supabase) return Promise.resolve(cloneUser());
     try {
       const { error } = await supabase.from('users').upsert(toUserUpdate(userProfile, nextPreferences.preferenceTags));
@@ -462,6 +509,7 @@ export const dbService = {
   async createCustomPet(pet: Pet): Promise<Pet> {
     const persistedPet = { ...pet, id: isUuid(pet.id) ? pet.id : createUuid() };
     customPets = [persistedPet, ...customPets.filter((existingPet) => existingPet.id !== persistedPet.id)];
+    writeLocal(storageKeys.customPets, customPets);
     if (!supabase) return Promise.resolve(persistedPet);
     try {
       const { error } = await supabase.from('pets').upsert(toPetRow(persistedPet));
@@ -531,6 +579,7 @@ export const dbService = {
       ...userProfile,
       intimacyValue: userProfile.intimacyValue + normalizedRecord.intimacyDelta,
     };
+    writeLocal(storageKeys.user, userProfile);
     if (!supabase) return Promise.resolve(normalizedRecord);
     try {
       const { error } = await supabase.from('travel_records').upsert(toTravelRecordRow(normalizedRecord));
@@ -551,6 +600,7 @@ export const dbService = {
       ...userProfile,
       intimacyValue: userProfile.intimacyValue + delta,
     };
+    writeLocal(storageKeys.user, userProfile);
     if (!supabase) return Promise.resolve(cloneUser());
     try {
       const { data, error: readError } = await supabase.from('pets').select('intimacy').eq('id', petId).maybeSingle<{

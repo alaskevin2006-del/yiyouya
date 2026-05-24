@@ -1,0 +1,204 @@
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: all;
+  opacity: 0;
+  animation: loadingScreenIn 0.55s ease forwards;
+}
+
+.loading-screen.is-exiting {
+  pointer-events: none;
+  animation: loadingScreenOut 0.85s ease forwards;
+}
+
+.loading-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    url("/assets/loading/opening-hero.png") center / cover no-repeat;
+  transform: scale(1.01);
+  animation: loadingBgFloat 5.6s ease-in-out infinite;
+}
+
+.loading-screen.is-exiting .loading-bg {
+  animation: loadingBgExit 0.85s ease forwards;
+}
+
+.loading-screen::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(circle at 50% 82%, rgba(255, 255, 255, 0.34), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(168, 232, 255, 0.1));
+}
+
+.loading-brand {
+  position: absolute;
+  top: clamp(30px, 9.5vh, 42px);
+  left: clamp(30px, 5vw, 58px);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #22170f;
+  text-shadow: 0 2px 12px rgba(255, 255, 255, 0.62);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: loadingCopyIn 0.7s ease 0.2s forwards;
+}
+
+.loading-logo {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: 0 0 auto;
+  width: clamp(42px, 4vw, 54px);
+  height: clamp(42px, 4vw, 54px);
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  box-shadow: 0 4px 14px rgba(91, 57, 27, 0.12);
+}
+
+.loading-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.12);
+}
+
+.loading-brand-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.loading-brand-copy strong {
+  font-family: Georgia, "Songti SC", "SimSun", serif;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.loading-brand-copy small {
+  color: rgba(54, 43, 31, 0.82);
+  font-size: clamp(17px, 2.2vw, 22px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.loading-copy {
+  display: none;
+}
+
+.loading-title {
+  margin: 0;
+  color: #2378b6;
+  font-family: Georgia, "Times New Roman", "Songti SC", serif;
+  font-size: clamp(42px, 6vw, 96px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  text-shadow:
+    0 0 16px rgba(255, 255, 255, 0.98),
+    0 8px 30px rgba(73, 139, 178, 0.22);
+}
+
+@keyframes loadingScreenIn {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes loadingScreenOut {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes loadingBgFloat {
+  0%,
+  100% {
+    transform: scale(1.01) translateY(0);
+  }
+  50% {
+    transform: scale(1.018) translateY(-6px);
+  }
+}
+
+@keyframes loadingBgExit {
+  0% {
+    filter: blur(0);
+    transform: scale(1.012);
+  }
+  100% {
+    filter: blur(3px);
+    transform: scale(1.035);
+  }
+}
+
+@keyframes loadingCopyIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes loadingTitleIn {
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@media (max-width: 560px) {
+  .loading-bg {
+    background-position: center top;
+  }
+
+  .loading-brand {
+    left: 18px;
+    top: 16px;
+    gap: 10px;
+  }
+
+  .loading-copy {
+    bottom: 42px;
+  }
+
+  .loading-logo {
+    width: 42px;
+    height: 42px;
+  }
+
+  .loading-title {
+    font-size: clamp(34px, 10vw, 54px);
+    letter-spacing: 0.04em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-screen,
+  .loading-screen *,
+  .loading-screen::before {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

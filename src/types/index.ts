@@ -34,12 +34,22 @@ export interface UserProfile {
 
 export interface Pet {
   id: string;
+  type?: string;
   name: string;
+  displayName?: string;
   species: string;
   personality: string;
   avatarUrl: string;
+  avatar_url?: string;
   referenceImageUrl: string;
   description: string;
+  callUser?: string;
+  journalStyle?: string;
+  shortIntro?: string;
+  tags?: string[];
+  animationStyle?: 'elegant-float' | 'cozy-bounce' | 'dragon-hover' | 'scholar-sway' | string;
+  theme?: 'ivory' | 'bamboo' | 'sky' | 'sunny' | string;
+  skillRole?: string;
   source: 'mock' | 'custom' | 'future_api';
 }
 
@@ -104,6 +114,7 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'pet' | 'system';
   content: string;
+  imageUrl?: string;
   createdAt: string;
 }
 
