@@ -14,6 +14,7 @@ export function MessageList({ messages, showRegenerate = false }: MessageListPro
             <div className="message-content">
               <strong>{message.role === 'user' ? '你' : message.role === 'pet' ? '宠物' : '系统'}</strong>
               <p>{message.content}</p>
+              {message.imageUrl && <img className="message-image" src={message.imageUrl} alt="旅行生成图" />}
             </div>
             {showRegenerate && message.role === 'pet' && (
               <button className="regenerate-button" type="button" disabled>

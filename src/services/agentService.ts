@@ -1,131 +1,70 @@
 import type { ChatMessage, Destination, DiaryEntry, Pet } from '../types';
+import { useAppStore } from '../store/appStore';
 import { imageService } from './imageService';
-
-type CozeAction = 'start' | 'depart' | 'message' | 'next' | 'summarize';
-
-type CozeAgentData = {
-  greeting_bubble?: string;
-  journal_content?: string;
-  extracted_tags?: string[];
-  image_prompt?: string;
-  reply_text?: string;
-  user_sentiment?: string;
-  intimacy_bonus?: number;
-  next_suggestion?: string;
-  travel_plan?: Record<string, unknown> | string[] | string;
-  image_url?: string | null;
-};
-
-type CozeAgentResponse = {
-  success: boolean;
-  action: CozeAction | string;
-  data?: CozeAgentData | null;
-  error?: string | null;
-};
-
-type AgentDestination = Destination & {
-  cozeAgentRawOutput?: CozeAgentResponse[];
-  cozeImagePrompt?: string;
-};
 
 const delay = (ms = 500) => new Promise((resolve) => window.setTimeout(resolve, ms));
 const createId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-let nextDiaryAction: Extract<CozeAction, 'depart' | 'next'> = 'depart';
+type DiaryAction = 'depart' | 'next';
+
+type TravelStartResponse = {
+  petMessage: string;
+  travelPlan: {
+    destination: string;
+    theme: string;
+    route: string[];
+    reason: string;
+  };
+  status: 'waiting_departure';
+};
+
+type TravelDiaryResponse = {
+  petMessage: string;
+  diaryEntry: {
+    title: string;
+    location: string;
+    text: string;
+    mood: string;
+    moodDelta: { happiness: number; healing: number; curiosity: number };
+    tags: string[];
+    imagePrompt: string;
+    imageUrl: string;
+  };
+  nextSuggestion: string;
+};
+
+type TravelMessageResponse = {
+  petMessage: string;
+  mood: string;
+  suggestedAction: 'continue';
+};
+
+type PreferenceSummaryResponse = {
+  preferenceSummary: string;
+  keywords: string[];
+  nextRecommendedDestinations: string[];
+};
+
+let nextDiaryAction: DiaryAction = 'depart';
 let latestStartGreeting = '';
+let latestPet: Pet | undefined;
+let latestRoute: string[] = [];
 
-const parseMaybeJson = (value: unknown): unknown => {
-  if (typeof value !== 'string') return value;
+const callFunctionJson = async <T>(path: string, payload: Record<string, unknown>): Promise<T | undefined> => {
   try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-};
-
-const stringFrom = (...values: unknown[]) => {
-  for (const value of values) {
-    const parsed = parseMaybeJson(value);
-    if (typeof parsed === 'string' && parsed.trim()) return parsed.trim();
-  }
-  return '';
-};
-
-const normalizeTravelPlan = (travelPlan: CozeAgentData['travel_plan'], fallbackText = ''): string[] | undefined => {
-  const parsed = parseMaybeJson(travelPlan);
-  if (Array.isArray(parsed)) {
-    const lines = parsed.map((line) => String(line).trim()).filter(Boolean);
-    return lines.length ? lines : undefined;
-  }
-  if (parsed && typeof parsed === 'object') {
-    const lines = Object.entries(parsed as Record<string, unknown>)
-      .map(([key, value]) => {
-        if (Array.isArray(value)) return `${key}: ${value.map((item) => String(item).trim()).filter(Boolean).join(', ')}`;
-        if (value && typeof value === 'object') return `${key}: ${JSON.stringify(value)}`;
-        return `${key}: ${String(value ?? '').trim()}`;
-      })
-      .filter((line) => line.replace(/^[^:]+:\s*/, '').trim());
-    return lines.length ? lines : undefined;
-  }
-  if (typeof parsed === 'string' && parsed.trim()) {
-    const lines = parsed
-      .split(/\r?\n/)
-      .map((line) => line.replace(/^[-*\d.\s]+/, '').trim())
-      .filter(Boolean);
-    return lines.length ? lines : [parsed.trim()];
-  }
-  return fallbackText ? [fallbackText] : undefined;
-};
-
-const mergeTags = (destination: Destination, tags?: string[]) => {
-  if (!tags?.length) return destination.tags;
-  return Array.from(new Set([...destination.tags, ...tags.filter(Boolean)]));
-};
-
-const attachCozeOutput = (destination: Destination, output: CozeAgentResponse): Destination => {
-  const current = destination as AgentDestination;
-  current.cozeAgentRawOutput = [...(current.cozeAgentRawOutput ?? []), output];
-  current.cozeImagePrompt = output.data?.image_prompt ?? current.cozeImagePrompt;
-  current.tags = mergeTags(destination, output.data?.extracted_tags);
-  return current;
-};
-
-const logFallback = (action: CozeAction, reason: string) => {
-  console.warn('[Coze] fallback reason', `${action}: ${reason}`);
-};
-
-const callCozeAgent = async (
-  action: CozeAction,
-  payload: Record<string, unknown>,
-): Promise<CozeAgentResponse | undefined> => {
-  console.warn('[Coze] calling function', action);
-  try {
-    const response = await fetch('/.netlify/functions/coze-agent', {
+    const response = await fetch(path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...payload }),
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      logFallback(action, `function http ${response.status}`);
+      console.warn('[agentService] function http error', response.status, path);
       return undefined;
     }
-
-    const result = (await response.json()) as CozeAgentResponse;
-    console.warn('[Coze] function result success', result.success);
-    console.warn('[Coze] data keys', Object.keys(result.data || {}));
-
-    if (!result.success) {
-      logFallback(action, result.error || 'function returned success:false');
-      return undefined;
-    }
-    if (!result.data) {
-      logFallback(action, 'function returned empty data');
-      return undefined;
-    }
-    return result;
+    return (await response.json()) as T;
   } catch (error) {
-    logFallback(action, error instanceof Error ? error.message : 'function request failed');
+    console.warn('[agentService] function request failed', error);
     return undefined;
   }
 };
@@ -133,9 +72,9 @@ const callCozeAgent = async (
 const fallbackTravelPlan = async (destination: Destination, pet: Pet): Promise<string[]> => {
   await delay();
   return [
-    `${pet.name} arrives in ${destination.name} and checks the weather and first route.`,
-    `Find a street, landmark, or natural stop that best represents ${destination.country}.`,
-    'Bring back a short illustrated travel note, then wait for the next instruction.',
+    `${pet.name} 先抵达 ${destination.name}，确认天气和第一站路线。`,
+    `寻找一个最能代表 ${destination.country} 当地气质的街区或自然景点。`,
+    '给主人带回一段图文游记，并等待下一步指令。',
   ];
 };
 
@@ -145,8 +84,8 @@ const fallbackDiaryEntry = async (destination: Destination, stopIndex: number): 
   return {
     id: createId('diary'),
     destinationId: destination.id,
-    title: `${destination.name} stop ${stopIndex}`,
-    content: `The pet reached stop ${stopIndex} in ${destination.name}. It noticed ${destination.tags.join(', ')} and turned the moment into a short travel journal for its owner.`,
+    title: `${destination.name} 第 ${stopIndex} 站`,
+    content: `宠物抵达了 ${destination.name} 的第 ${stopIndex} 个探索点。它记录下 ${destination.tags.join('、')} 的气息，并把这段体验整理成给主人看的小游记。`,
     imageUrl,
     createdAt: new Date().toISOString(),
   };
@@ -157,7 +96,7 @@ const fallbackReply = async (message: string, destination: Destination): Promise
   return {
     id: createId('msg'),
     role: 'pet',
-    content: `Got it. About "${message}", I will pay closer attention while exploring ${destination.name} and bring back the details.`,
+    content: `我收到啦。关于“${message}”，我会在 ${destination.name} 的路上多留意一点，再把看到的细节带回来。`,
     createdAt: new Date().toISOString(),
   };
 };
@@ -165,54 +104,84 @@ const fallbackReply = async (message: string, destination: Destination): Promise
 const fallbackSummary = async (text: string): Promise<string> => {
   await delay(300);
   if (!text.trim()) {
-    return 'Prefers quiet, story-rich destinations that suit slow travel.';
+    return '偏好安静、有故事感、适合慢旅行的目的地。';
   }
-  return `Preference summary: ${text.trim()}. Suitable for relaxed, detail-rich trips.`;
+  return `偏好总结：${text.trim()}。适合安排节奏舒缓、细节丰富的旅行。`;
 };
 
+const stringifyTravelPlan = (value: TravelStartResponse['travelPlan']): string[] => {
+  const route = Array.isArray(value.route) ? value.route.map((item) => item.trim()).filter(Boolean) : [];
+  const lines: string[] = [];
+  if (value.destination.trim()) lines.push(`目的地：${value.destination.trim()}`);
+  if (value.theme.trim()) lines.push(`主题：${value.theme.trim()}`);
+  if (route.length) lines.push(...route.map((stop, index) => `第${index + 1}站：${stop}`));
+  if (value.reason.trim()) lines.push(`为什么：${value.reason.trim()}`);
+  return lines.length ? lines : [];
+};
+
+const getCurrentPreferencesText = () => {
+  const state = useAppStore.getState();
+  const preferenceText = state.user.preferenceText?.trim() || '';
+  const preferenceSummary = state.preferenceSummary?.trim() || state.user.preferenceSummary?.trim() || '';
+  return preferenceText || preferenceSummary;
+};
+
+const getCurrentLocationFromRoute = (stopIndex: number) => {
+  const idx = Math.max(1, stopIndex) - 1;
+  return latestRoute[idx] ?? '';
+};
+
+const isGeneratedFallbackImage = (url?: string) => Boolean(url?.includes('_mock-visual.svg'));
+
 export const agentService = {
-  markNextDiaryAction(action: Extract<CozeAction, 'depart' | 'next'>) {
+  markNextDiaryAction(action: DiaryAction) {
     nextDiaryAction = action;
   },
 
   consumeLatestStartGreeting(destination: Destination) {
-    const greeting = latestStartGreeting || `I am getting ready to depart for ${destination.name}.`;
+    const greeting = latestStartGreeting || `我开始为 ${destination.name} 做出发准备了。`;
     latestStartGreeting = '';
     return greeting;
   },
 
   async generateTravelPlan(destination: Destination, pet: Pet): Promise<string[]> {
-    const result = await callCozeAgent('start', { destination, pet });
-    if (!result?.data) return fallbackTravelPlan(destination, pet);
+    latestPet = pet;
+    const response = await callFunctionJson<TravelStartResponse>('/.netlify/functions/travel-start', {
+      destination,
+      pet,
+      userPreferences: getCurrentPreferencesText(),
+    });
+    if (!response) return fallbackTravelPlan(destination, pet);
 
-    attachCozeOutput(destination, result);
-    latestStartGreeting = stringFrom(result.data.greeting_bubble, result.data.reply_text, result.data.next_suggestion);
-    const fallbackText = stringFrom(result.data.reply_text, result.data.greeting_bubble, result.data.next_suggestion, result.data.journal_content);
-    const plan = normalizeTravelPlan(result.data.travel_plan, fallbackText);
-    if (!plan?.length) {
-      logFallback('start', 'no travel plan or usable text in function data');
-      return fallbackTravelPlan(destination, pet);
-    }
-    return plan;
+    latestStartGreeting = response.petMessage?.trim() || latestStartGreeting;
+    latestRoute = Array.isArray(response.travelPlan?.route) ? response.travelPlan.route.map((item) => String(item).trim()).filter(Boolean) : [];
+    const planLines = stringifyTravelPlan(response.travelPlan);
+    return planLines.length ? planLines : fallbackTravelPlan(destination, pet);
   },
 
   async generateDiaryEntry(destination: Destination, stopIndex: number): Promise<DiaryEntry> {
     const action = nextDiaryAction;
     nextDiaryAction = 'next';
-    const result = await callCozeAgent(action, { destination, stopIndex });
-    if (!result?.data) return fallbackDiaryEntry(destination, stopIndex);
+    const endpoint = action === 'depart' ? '/.netlify/functions/travel-depart' : '/.netlify/functions/travel-next';
+    const response = await callFunctionJson<TravelDiaryResponse>(endpoint, {
+      destination,
+      pet: latestPet,
+      stopIndex,
+      route: latestRoute,
+      currentLocation: getCurrentLocationFromRoute(stopIndex),
+    });
+    if (!response) return fallbackDiaryEntry(destination, stopIndex);
 
-    attachCozeOutput(destination, result);
     const fallbackEntry = await fallbackDiaryEntry(destination, stopIndex);
-    const imageUrl = result.data.image_url?.trim() || imageService.getDiaryEntryImage(destination, stopIndex);
-    const content = stringFrom(result.data.journal_content, result.data.reply_text, result.data.next_suggestion) || fallbackEntry.content;
-
-    if (content === fallbackEntry.content) logFallback(action, 'no journal/reply text in function data');
+    const title = response.diaryEntry?.title?.trim() || `${destination.name} 第 ${stopIndex} 站`;
+    const content = response.diaryEntry?.text?.trim() || response.petMessage?.trim() || fallbackEntry.content;
+    const responseImageUrl = response.diaryEntry?.imageUrl?.trim() || '';
+    const imageUrl = responseImageUrl && !isGeneratedFallbackImage(responseImageUrl) ? responseImageUrl : imageService.getDiaryEntryImage(destination, stopIndex);
 
     return {
       id: createId('diary'),
       destinationId: destination.id,
-      title: stringFrom(result.data.next_suggestion, result.data.greeting_bubble) || `${destination.name} stop ${stopIndex}`,
+      title,
       content,
       imageUrl,
       createdAt: new Date().toISOString(),
@@ -220,26 +189,26 @@ export const agentService = {
   },
 
   async replyToUserMessage(message: string, destination: Destination): Promise<ChatMessage> {
-    const result = await callCozeAgent('message', { message, user_message: message, destination });
-    if (!result?.data) return fallbackReply(message, destination);
-
-    attachCozeOutput(destination, result);
-    const fallbackMessage = await fallbackReply(message, destination);
-    const content = stringFrom(result.data.reply_text, result.data.next_suggestion, result.data.journal_content, result.data.greeting_bubble) || fallbackMessage.content;
-
-    if (content === fallbackMessage.content) logFallback('message', 'no reply text in function data');
-
+    const response = await callFunctionJson<TravelMessageResponse>('/.netlify/functions/travel-message', {
+      destination,
+      pet: latestPet,
+      message,
+      currentLocation: getCurrentLocationFromRoute(useAppStore.getState().currentSession?.diaryEntries.length ?? 0),
+    });
+    if (!response) return fallbackReply(message, destination);
     return {
       id: createId('msg'),
       role: 'pet',
-      content,
+      content: response.petMessage?.trim() || (await fallbackReply(message, destination)).content,
       createdAt: new Date().toISOString(),
     };
   },
 
   async summarizePreferences(text: string): Promise<string> {
-    const result = await callCozeAgent('summarize', { text, userPreferences: text });
-    if (!result?.data) return fallbackSummary(text);
-    return stringFrom(result.data.reply_text, result.data.journal_content, result.data.greeting_bubble) || fallbackSummary(text);
+    const response = await callFunctionJson<PreferenceSummaryResponse>('/.netlify/functions/preference-summary', {
+      text,
+    });
+    if (!response) return fallbackSummary(text);
+    return response.preferenceSummary?.trim() || fallbackSummary(text);
   },
 };
